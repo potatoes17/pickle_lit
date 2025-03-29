@@ -142,7 +142,7 @@ if rows:
         spice_filter = st.multiselect("Spice Level", spice_levels)
 
     df_filtered = df[
-        df["year_published"].astype(int).between(*year_range) &
+        pd.to_numeric(df["year_published"], errors="coerce").between(*year_range) &
         df["title"].str.contains(title_filter, case=False, na=False) &
         df["author"].str.contains(author_filter, case=False, na=False)
     ]
