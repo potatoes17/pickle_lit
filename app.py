@@ -20,7 +20,6 @@ def get_worksheet():
     sheet = gc.open_by_url(SHEET_URL)
     return sheet.worksheet(WORKSHEET_NAME)
 
-@st.cache_data
 def load_data(worksheet):
     rows = worksheet.get_all_values()
     if not rows or len(rows) < 2:
