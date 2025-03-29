@@ -139,3 +139,4 @@ if rows:
     st.dataframe(df_filtered.reset_index(drop=True))
 else:
     st.warning("No data found in Google Sheet. Click the scrape button above to begin.")
+ 
