@@ -3,3 +3,4 @@ pandas
 gspread
 google-auth
 beautifulsoup4
+psycopg2-binary
