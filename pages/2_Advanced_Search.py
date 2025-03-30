@@ -44,9 +44,14 @@ def update_sheet(df, worksheet):
                 worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
                 updated_rows += 1
             except Exception as e:
-                st.error(f"❌ Error updating row {i} ({row['title']}): {e}")
+                st.error(f"❌ Error updating row {i}: {e}")
 
     st.write(f"✅ {updated_rows} row(s) successfully updated in the Google Sheet.")
+
+# --- Safe Rerun Trigger ---
+if st.session_state.get("search_reload"):
+    st.session_state.search_reload = False
+    st.stop()
 
 # --- UI ---
 st.set_page_config(page_title="🔍 Advanced Search", layout="wide")
@@ -91,6 +96,7 @@ else:
 
     st.write(f"### Results: {len(filtered_df)} book(s) found")
 
+    # --- Infinite Scroll ---
     if "search_limit" not in st.session_state:
         st.session_state.search_limit = 20
 
@@ -99,6 +105,7 @@ else:
 
     if st.button("⬇️ Load More Results"):
         st.session_state.search_limit += 20
+        st.session_state.search_reload = True
         st.experimental_rerun()
 
     if st.button("🔄 Scrape Updates for Filtered Books"):
