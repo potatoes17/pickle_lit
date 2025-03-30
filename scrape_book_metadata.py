@@ -1,7 +1,15 @@
 
 import requests
 from datetime import datetime
-from save_to_postgres import save_books_to_db
+from save_to_postgres import upsert_books
+
+def extract_year(date_str):
+    if date_str and len(date_str) >= 4:
+        try:
+            return int(date_str[:4])
+        except:
+            return None
+    return None
 
 def scrape_book_metadata(title):
     try:
@@ -52,15 +60,8 @@ def scrape_book_metadata(title):
             "audio_last_updated": ""
         }
 
-        # Save to PostgreSQL
-        save_books_to_db([book_entry])
         return book_entry
 
     except Exception as e:
         print(f"Scrape failed for '{title}':", e)
         return None
-
-def extract_year(date_str):
-    if date_str:
-        return int(date_str.split("-")[0])
-    return None
