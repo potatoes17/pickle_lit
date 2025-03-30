@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -20,8 +21,8 @@ def get_worksheet():
     sheet = gc.open_by_url(SHEET_URL)
     return sheet.worksheet(WORKSHEET_NAME)
 
-def load_data(ws):
-    rows = ws.get_all_values()
+def load_data(worksheet):
+    rows = worksheet.get_all_values()
     return pd.DataFrame(rows[1:], columns=rows[0]) if rows else pd.DataFrame()
 
 def update_sheet(df, worksheet):
@@ -34,13 +35,16 @@ def update_sheet(df, worksheet):
         key = (row["title"], row["author"])
         if key in index_map:
             i = index_map[key]
-            worksheet.update(f"O{i}", row["audiobook"])
-            worksheet.update(f"P{i}", row["audiobook_voices"])
-            worksheet.update(f"Q{i}", row["audiobook_time"])
-            worksheet.update(f"U{i}", row["audio_last_updated"])
-            worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
+            try:
+                worksheet.update(f"O{i}", str(row.get("audiobook", "")))
+                worksheet.update(f"P{i}", str(row.get("audiobook_voices", "")))
+                worksheet.update(f"Q{i}", str(row.get("audiobook_time", "")))
+                worksheet.update(f"U{i}", str(row.get("audio_last_updated", "")))
+                worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
+            except Exception as e:
+                st.error(f"Error updating row {i}: {e}")
 
-# --- UI ---
+# --- Main Page ---
 st.set_page_config(page_title="📚 Browse & Update Books", layout="wide")
 st.title("📚 Browse & Update Books")
 
