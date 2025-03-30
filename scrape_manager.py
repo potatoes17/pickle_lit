@@ -2,7 +2,7 @@
 import time
 import streamlit as st
 from scrape_book_metadata import scrape_book_metadata
-from audible_scraper_with_timestamp import update_audible_info
+from audible_scraper import update_audible_info
 from save_to_postgres import get_postgres_conn, upsert_books
 
 def scrape_and_update(title, filters=None, max_age_days=30, skip_audible_if_many=True):
