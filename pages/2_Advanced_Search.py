@@ -35,11 +35,14 @@ def update_sheet(df, worksheet):
         key = (row["title"], row["author"])
         if key in index_map:
             i = index_map[key]
-            worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
-            worksheet.update(f"O{i}", row.get("audiobook", ""))
-            worksheet.update(f"P{i}", row.get("audiobook_voices", ""))
-            worksheet.update(f"Q{i}", row.get("audiobook_time", ""))
-            worksheet.update(f"U{i}", row.get("audio_last_updated", ""))
+            try:
+                worksheet.update(f"O{i}", str(row.get("audiobook", "")))
+                worksheet.update(f"P{i}", str(row.get("audiobook_voices", "")))
+                worksheet.update(f"Q{i}", str(row.get("audiobook_time", "")))
+                worksheet.update(f"U{i}", str(row.get("audio_last_updated", "")))
+                worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
+            except Exception as e:
+                st.error(f"❌ Error updating row {i}: {e}")
 
 # --- UI ---
 st.set_page_config(page_title="🔍 Advanced Search", layout="wide")
@@ -83,7 +86,6 @@ else:
         filtered_df = filtered_df[filtered_df["tags"].str.contains("|".join(selected_tags), case=False)]
 
     st.write(f"### Results: {len(filtered_df)} book(s)")
-
     st.dataframe(filtered_df)
 
     if st.button("🔄 Scrape Updates for Filtered Books"):
@@ -91,7 +93,7 @@ else:
             st.error("⚠️ Too many entries to scrape safely. Please narrow your search (limit: 20).")
         else:
             st.info("Scraping audiobook info for selected books...")
-            time.sleep(1.5)  # Delay before starting
+            time.sleep(1.5)
             updates = update_audible_info(filtered_df, max_days=0)
             time.sleep(1.5)
 

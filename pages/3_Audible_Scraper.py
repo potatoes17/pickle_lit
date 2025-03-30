@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -33,11 +34,14 @@ def update_sheet(df, worksheet):
         key = (row["title"], row["author"])
         if key in index_map:
             i = index_map[key]
-            worksheet.update(f"O{i}", row["audiobook"])
-            worksheet.update(f"P{i}", row["audiobook_voices"])
-            worksheet.update(f"Q{i}", row["audiobook_time"])
-            worksheet.update(f"U{i}", row["audio_last_updated"])
-            worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
+            try:
+                worksheet.update(f"O{i}", str(row.get("audiobook", "")))
+                worksheet.update(f"P{i}", str(row.get("audiobook_voices", "")))
+                worksheet.update(f"Q{i}", str(row.get("audiobook_time", "")))
+                worksheet.update(f"U{i}", str(row.get("audio_last_updated", "")))
+                worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
+            except Exception as e:
+                st.error(f"❌ Error updating row {i}: {e}")
 
 # --- UI ---
 st.set_page_config(page_title="🎧 Manual Audible Scraper", layout="wide")

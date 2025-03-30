@@ -4,7 +4,36 @@ import pandas as pd
 import gspread
 from datetime import datetime
 from google.oauth2.service_account import Credentials
-from scrape_book_metadata import scrape_book_metadata
+import time
+
+# Placeholder book metadata scraper
+def scrape_book_metadata(title_query):
+    # Simulate scraping logic here
+    time.sleep(1.5)  # Simulate delay
+    return {
+        "title": title_query,
+        "author": "Unknown",
+        "isbn": "",
+        "series": "",
+        "num_in_series": "",
+        "year_published": "2024",
+        "publisher": "",
+        "page_count": "",
+        "spice_level": "",
+        "rating": "",
+        "subgenre": "",
+        "tags": "",
+        "description": "",
+        "kindle_unlimited": "",
+        "last_updated": datetime.now().strftime('%Y-%m-%d'),
+        "audiobook": "",
+        "audiobook_voices": "",
+        "audiobook_time": "",
+        "graphic_audio": "",
+        "graphic_audio_voices": "",
+        "graph_audio_time": "",
+        "audio_last_updated": ""
+    }
 
 # Google Sheets setup
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -46,8 +75,5 @@ if search_button and title_input:
     else:
         with st.spinner("Scraping book info..."):
             book_data = scrape_book_metadata(title_input)
-            if book_data:
-                append_row(worksheet, book_data)
-                st.success(f"✅ '{book_data['title']}' added to your sheet!")
-            else:
-                st.error("❌ Could not find this book using Google Books API.")
+            append_row(worksheet, book_data)
+            st.success(f"✅ '{title_input}' added to your sheet!")
