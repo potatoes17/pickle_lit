@@ -37,15 +37,20 @@ def update_sheet(df, worksheet):
         if key in index_map:
             i = index_map[key]
             try:
-                worksheet.update(f"O{i}", str(row.get("audiobook", "")))
-                worksheet.update(f"P{i}", str(row.get("audiobook_voices", "")))
-                worksheet.update(f"Q{i}", str(row.get("audiobook_time", "")))
-                worksheet.update(f"U{i}", str(row.get("audio_last_updated", "")))
-                worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
+                worksheet.update(f"O{i}", [str(row.get("audiobook", ""))])
+                worksheet.update(f"P{i}", [str(row.get("audiobook_voices", ""))])
+                worksheet.update(f"Q{i}", [str(row.get("audiobook_time", ""))])
+                worksheet.update(f"U{i}", [str(row.get("audio_last_updated", ""))])
+                worksheet.update(f"N{i}", [datetime.now().strftime('%Y-%m-%d')])
                 updated_rows += 1
             except Exception as e:
                 st.error(f"Error updating row {i}: {e}")
     st.write(f"✅ {updated_rows} row(s) successfully updated in the Google Sheet.")
+
+# --- Safe Rerun Trigger ---
+if st.session_state.get("browse_reload"):
+    st.session_state.browse_reload = False
+    st.stop()
 
 # --- Main Page ---
 st.set_page_config(page_title="📚 Browse & Update Books", layout="wide")
@@ -84,4 +89,5 @@ else:
 
     if st.button("⬇️ Load More Books"):
         st.session_state.browse_limit += 20
+        st.session_state.browse_reload = True
         st.experimental_rerun()

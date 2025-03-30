@@ -37,11 +37,11 @@ def update_sheet(df, worksheet):
         if key in index_map:
             i = index_map[key]
             try:
-                worksheet.update(f"O{i}", str(row.get("audiobook", "")))
-                worksheet.update(f"P{i}", str(row.get("audiobook_voices", "")))
-                worksheet.update(f"Q{i}", str(row.get("audiobook_time", "")))
-                worksheet.update(f"U{i}", str(row.get("audio_last_updated", "")))
-                worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
+                worksheet.update(f"O{i}", [str(row.get("audiobook", ""))])
+                worksheet.update(f"P{i}", [str(row.get("audiobook_voices", ""))])
+                worksheet.update(f"Q{i}", [str(row.get("audiobook_time", ""))])
+                worksheet.update(f"U{i}", [str(row.get("audio_last_updated", ""))])
+                worksheet.update(f"N{i}", [datetime.now().strftime('%Y-%m-%d')])
                 updated_rows += 1
             except Exception as e:
                 st.error(f"❌ Error updating row {i}: {e}")
@@ -96,7 +96,6 @@ else:
 
     st.write(f"### Results: {len(filtered_df)} book(s) found")
 
-    # --- Infinite Scroll ---
     if "search_limit" not in st.session_state:
         st.session_state.search_limit = 20
 
