@@ -1,72 +1,42 @@
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
+from datetime import datetime, timedelta
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from audible_scraper import update_audible_info
+from save_to_postgres import get_postgres_conn, save_books_to_db
 
-# --- Google Sheet Setup ---
-SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1eKNsNHFMw-Yh9sDYGAgWXAs4zO-otw06nl6OjqO-T20/edit"
-WORKSHEET_NAME = "Sheet1"
-
-@st.cache_resource
-def get_worksheet():
-    credentials = Credentials.from_service_account_info(
-        st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"],
-        scopes=SCOPE
-    )
-    gc = gspread.authorize(credentials)
-    return gc.open_by_url(SHEET_URL).worksheet(WORKSHEET_NAME)
-
-def load_data(ws):
-    rows = ws.get_all_values()
-    return pd.DataFrame(rows[1:], columns=rows[0]) if rows else pd.DataFrame()
-
-def update_sheet(df, worksheet):
-    all_records = worksheet.get_all_values()
-    headers = all_records[0]
-    data = all_records[1:]
-    index_map = {(row[0], row[1]): idx+2 for idx, row in enumerate(data)}
-
-    updated_rows = 0
-    for _, row in df.iterrows():
-        key = (row["title"], row["author"])
-        if key in index_map:
-            i = index_map[key]
-            try:
-                worksheet.update(f"O{i}", [str(row.get("audiobook", ""))])
-                worksheet.update(f"P{i}", [str(row.get("audiobook_voices", ""))])
-                worksheet.update(f"Q{i}", [str(row.get("audiobook_time", ""))])
-                worksheet.update(f"U{i}", [str(row.get("audio_last_updated", ""))])
-                worksheet.update(f"N{i}", [datetime.now().strftime('%Y-%m-%d')])
-                updated_rows += 1
-            except Exception as e:
-                st.error(f"❌ Error updating row {i}: {e}")
-    st.write(f"✅ {updated_rows} row(s) updated in the Google Sheet.")
-
-# --- UI ---
-st.set_page_config(page_title="🎧 Manual Audible Scraper", layout="wide")
+st.set_page_config(page_title="🎧 Audible Scraper", layout="wide")
 st.title("🎧 Manual Audible Scraper")
 
-worksheet = get_worksheet()
-df = load_data(worksheet)
+@st.cache_data
+def load_books_needing_audio_update(max_days=30):
+    conn = get_postgres_conn()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT * FROM books
+            WHERE audio_last_updated IS NULL
+               OR audio_last_updated < %s
+            ORDER BY audio_last_updated NULLS FIRST
+            LIMIT 100
+        """, (datetime.now().date() - timedelta(days=max_days),))
+        rows = cur.fetchall()
+    conn.close()
+    return pd.DataFrame(rows)
 
-if df.empty:
-    st.warning("No data found in sheet.")
-else:
-    st.markdown("Use this tool to check all books for audiobook info updates.")
-    max_days = st.slider("Only check books not updated in the last (days):", 1, 90, 30)
+max_days = st.slider("Only check books not updated in the last (days):", 1, 90, 30)
 
-    if st.button("🔄 Run Audible Update"):
-        st.info("Checking books for audiobook updates...")
+if st.button("🔄 Run Audible Update"):
+    df = load_books_needing_audio_update(max_days)
+    if df.empty:
+        st.info("No books need updates based on that date filter.")
+    else:
+        st.info(f"Checking {len(df)} books for audiobook info...")
         updates = update_audible_info(df, max_days=max_days)
-
         if updates:
-            updated_df = pd.DataFrame(updates)
-            update_sheet(updated_df, worksheet)
-            st.success(f"✅ Updated {len(updated_df)} books.")
-            st.dataframe(updated_df)
+            save_books_to_db(updates)
+            st.success(f"✅ Updated {len(updates)} books with audio info.")
+            st.dataframe(pd.DataFrame(updates))
         else:
-            st.info("No books needed updating.")
+            st.info("No updates needed.")
