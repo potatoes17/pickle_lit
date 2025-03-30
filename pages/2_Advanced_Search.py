@@ -1,7 +1,11 @@
+
 import streamlit as st
 import pandas as pd
 import gspread
+import time
+from datetime import datetime
 from google.oauth2.service_account import Credentials
+from audible_scraper import update_audible_info
 
 # --- Google Sheet Setup ---
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -21,6 +25,22 @@ def load_data(ws):
     rows = ws.get_all_values()
     return pd.DataFrame(rows[1:], columns=rows[0]) if rows else pd.DataFrame()
 
+def update_sheet(df, worksheet):
+    all_records = worksheet.get_all_values()
+    headers = all_records[0]
+    data = all_records[1:]
+    index_map = {(row[0], row[1]): idx+2 for idx, row in enumerate(data)}
+
+    for _, row in df.iterrows():
+        key = (row["title"], row["author"])
+        if key in index_map:
+            i = index_map[key]
+            worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
+            worksheet.update(f"O{i}", row.get("audiobook", ""))
+            worksheet.update(f"P{i}", row.get("audiobook_voices", ""))
+            worksheet.update(f"Q{i}", row.get("audiobook_time", ""))
+            worksheet.update(f"U{i}", row.get("audio_last_updated", ""))
+
 # --- UI ---
 st.set_page_config(page_title="🔍 Advanced Search", layout="wide")
 st.title("🔍 Advanced Search")
@@ -36,7 +56,7 @@ else:
     title_filter = st.sidebar.text_input("Search by Title")
     author_filter = st.sidebar.text_input("Search by Author")
     year_range = st.sidebar.slider("Year Published", 2005, 2025, (2005, 2025))
-    spice_level = st.sidebar.slider("Spice Level (0–5)", 0.0, 5.0, (0.0, 5.0), 0.5)
+    spice_range = st.sidebar.slider("Spice Level", 0.0, 5.0, (0.0, 5.0), 0.5)
 
     subgenres = df["subgenre"].dropna().unique().tolist()
     tags = df["tags"].dropna().unique().tolist()
@@ -44,11 +64,11 @@ else:
     selected_subgenres = st.sidebar.multiselect("Subgenres", subgenres)
     selected_tags = st.sidebar.multiselect("Tags", tags)
 
-    filtered_df = df[
-        df["year_published"].astype(str).str.isnumeric() &
-        df["spice_level"].astype(str).str.replace(",", ".").str.replace(" ", "").str.replace("–", "-").str.extract(r"(\d+\.?\d*)")[0].astype(float).between(*spice_level) &
-        df["year_published"].astype(int).between(*year_range)
-    ]
+    # --- Apply Filters ---
+    filtered_df = df.copy()
+    filtered_df = filtered_df[filtered_df["year_published"].astype(str).str.isnumeric()]
+    filtered_df = filtered_df[filtered_df["year_published"].astype(int).between(*year_range)]
+    filtered_df = filtered_df[filtered_df["spice_level"].astype(str).str.extract(r"(\d+\.?\d*)")[0].astype(float).between(*spice_range)]
 
     if title_filter:
         filtered_df = filtered_df[filtered_df["title"].str.contains(title_filter, case=False)]
@@ -60,7 +80,25 @@ else:
         filtered_df = filtered_df[filtered_df["subgenre"].isin(selected_subgenres)]
 
     if selected_tags:
-        filtered_df = filtered_df[filtered_df["tags"].str.contains('|'.join(selected_tags), case=False)]
+        filtered_df = filtered_df[filtered_df["tags"].str.contains("|".join(selected_tags), case=False)]
 
-    st.write(f"### Results: {len(filtered_df)} book(s) found")
-    st.dataframe(filtered_df.reset_index(drop=True))
+    st.write(f"### Results: {len(filtered_df)} book(s)")
+
+    st.dataframe(filtered_df)
+
+    if st.button("🔄 Scrape Updates for Filtered Books"):
+        if len(filtered_df) > 20:
+            st.error("⚠️ Too many entries to scrape safely. Please narrow your search (limit: 20).")
+        else:
+            st.info("Scraping audiobook info for selected books...")
+            time.sleep(1.5)  # Delay before starting
+            updates = update_audible_info(filtered_df, max_days=0)
+            time.sleep(1.5)
+
+            if updates:
+                updated_df = pd.DataFrame(updates)
+                update_sheet(updated_df, worksheet)
+                st.success(f"✅ Updated {len(updated_df)} books.")
+                st.dataframe(updated_df)
+            else:
+                st.info("No updates were needed.")
