@@ -4,36 +4,7 @@ import pandas as pd
 import gspread
 from datetime import datetime
 from google.oauth2.service_account import Credentials
-import time
-
-# Placeholder book metadata scraper
-def scrape_book_metadata(title_query):
-    # Simulate scraping logic here
-    time.sleep(1.5)  # Simulate delay
-    return {
-        "title": title_query,
-        "author": "Unknown",
-        "isbn": "",
-        "series": "",
-        "num_in_series": "",
-        "year_published": "2024",
-        "publisher": "",
-        "page_count": "",
-        "spice_level": "",
-        "rating": "",
-        "subgenre": "",
-        "tags": "",
-        "description": "",
-        "kindle_unlimited": "",
-        "last_updated": datetime.now().strftime('%Y-%m-%d'),
-        "audiobook": "",
-        "audiobook_voices": "",
-        "audiobook_time": "",
-        "graphic_audio": "",
-        "graphic_audio_voices": "",
-        "graph_audio_time": "",
-        "audio_last_updated": ""
-    }
+from scrape_book_metadata import scrape_book_metadata
 
 # Google Sheets setup
 SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -55,7 +26,11 @@ def load_sheet(ws):
 
 def append_row(ws, book_dict):
     row = [book_dict.get(col, "") for col in ws.row_values(1)]
-    ws.append_row(row)
+    try:
+        ws.append_row(row)
+        st.success("✅ New book successfully added to the sheet.")
+    except Exception as e:
+        st.error(f"❌ Failed to append row to sheet: {e}")
 
 # Streamlit UI
 st.set_page_config(page_title="Pickle Lit", layout="centered")
@@ -67,7 +42,7 @@ df = load_sheet(worksheet)
 st.markdown("Search for a new book to add it to your database.")
 
 title_input = st.text_input("Enter book title")
-search_button = st.button("🔍 Search & Add New Books")
+search_button = st.button("🔍 Search & Add New Book")
 
 if search_button and title_input:
     if ((df["title"] == title_input).any()):
@@ -75,5 +50,9 @@ if search_button and title_input:
     else:
         with st.spinner("Scraping book info..."):
             book_data = scrape_book_metadata(title_input)
-            append_row(worksheet, book_data)
-            st.success(f"✅ '{title_input}' added to your sheet!")
+            if book_data:
+                st.write("Scraped data preview:")
+                st.dataframe(pd.DataFrame([book_data]))
+                append_row(worksheet, book_data)
+            else:
+                st.error("❌ Could not find this book using Google Books API.")

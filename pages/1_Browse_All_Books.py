@@ -31,6 +31,7 @@ def update_sheet(df, worksheet):
     data = all_records[1:]
     index_map = {(row[0], row[1]): idx+2 for idx, row in enumerate(data)}
 
+    updated_rows = 0
     for _, row in df.iterrows():
         key = (row["title"], row["author"])
         if key in index_map:
@@ -41,8 +42,10 @@ def update_sheet(df, worksheet):
                 worksheet.update(f"Q{i}", str(row.get("audiobook_time", "")))
                 worksheet.update(f"U{i}", str(row.get("audio_last_updated", "")))
                 worksheet.update(f"N{i}", datetime.now().strftime('%Y-%m-%d'))
+                updated_rows += 1
             except Exception as e:
                 st.error(f"Error updating row {i}: {e}")
+    st.write(f"✅ {updated_rows} row(s) successfully updated in the Google Sheet.")
 
 # --- Main Page ---
 st.set_page_config(page_title="📚 Browse & Update Books", layout="wide")
@@ -74,7 +77,6 @@ else:
                 updated_df = pd.DataFrame(updates)
                 update_sheet(updated_df, worksheet)
                 st.success(f"✅ Updated {len(updated_df)} books.")
-                st.dataframe(updated_df)
             else:
                 st.info("All selected books are already up-to-date.")
     else:
