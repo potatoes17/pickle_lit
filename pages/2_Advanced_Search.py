@@ -85,16 +85,26 @@ else:
     if selected_tags:
         filtered_df = filtered_df[filtered_df["tags"].str.contains("|".join(selected_tags), case=False)]
 
-    st.write(f"### Results: {len(filtered_df)} book(s)")
-    st.dataframe(filtered_df)
+    st.write(f"### Results: {len(filtered_df)} book(s) found")
+
+    # --- Infinite Scroll ---
+    if "search_limit" not in st.session_state:
+        st.session_state.search_limit = 20
+
+    show_df = filtered_df.head(st.session_state.search_limit)
+    st.dataframe(show_df.reset_index(drop=True))
+
+    if st.button("⬇️ Load More Results"):
+        st.session_state.search_limit += 20
+        st.experimental_rerun()
 
     if st.button("🔄 Scrape Updates for Filtered Books"):
-        if len(filtered_df) > 20:
+        if len(show_df) > 20:
             st.error("⚠️ Too many entries to scrape safely. Please narrow your search (limit: 20).")
         else:
             st.info("Scraping audiobook info for selected books...")
             time.sleep(1.5)
-            updates = update_audible_info(filtered_df, max_days=0)
+            updates = update_audible_info(show_df, max_days=0)
             time.sleep(1.5)
 
             if updates:

@@ -51,17 +51,22 @@ st.title("📚 Browse & Update Books")
 worksheet = get_worksheet()
 df = load_data(worksheet)
 
+if "browse_limit" not in st.session_state:
+    st.session_state.browse_limit = 20
+
 if df.empty:
     st.warning("No book data available.")
 else:
     df["label"] = df["title"] + " by " + df["author"]
-    selected = st.multiselect("Select books to check for updates:", options=df["label"].tolist())
+    shown_df = df.head(st.session_state.browse_limit)
+
+    selected = st.multiselect("Select books to check for updates:", options=shown_df["label"].tolist())
 
     if selected:
         if len(selected) > 20:
             st.error("⚠️ Too many entries selected. Please limit to 20.")
         elif st.button("🔄 Check Selected for Updates"):
-            selected_df = df[df["label"].isin(selected)]
+            selected_df = shown_df[shown_df["label"].isin(selected)]
             st.info(f"Running updates on {len(selected_df)} books...")
             updates = update_audible_info(selected_df, max_days=0)
 
@@ -73,4 +78,8 @@ else:
             else:
                 st.info("All selected books are already up-to-date.")
     else:
-        st.info("Select one or more books to check for updates.")
+        st.dataframe(shown_df)
+
+    if st.button("⬇️ Load More Books"):
+        st.session_state.browse_limit += 20
+        st.experimental_rerun()
