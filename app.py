@@ -34,6 +34,7 @@ df = load_books()
 st.write("Recent Books:")
 st.dataframe(df)
 
-if st.session_state.get("trigger_rerun"):
+# ✅ Safe rerun logic
+if st.session_state.get("trigger_rerun", False):
     st.session_state["trigger_rerun"] = False
     st.experimental_rerun()
