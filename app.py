@@ -1,58 +1,39 @@
 
 import streamlit as st
+from scrape_manager import scrape_and_update
+from save_to_postgres import get_postgres_conn
+from psycopg2.extras import RealDictCursor
 import pandas as pd
-import gspread
-from datetime import datetime
-from google.oauth2.service_account import Credentials
-from scrape_book_metadata import scrape_book_metadata
 
-# Google Sheets setup
-SCOPE = ["https://www.googleapis.com/auth/spreadsheets"]
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1eKNsNHFMw-Yh9sDYGAgWXAs4zO-otw06nl6OjqO-T20/edit"
-WORKSHEET_NAME = "Sheet1"
-
-@st.cache_resource
-def get_worksheet():
-    credentials = Credentials.from_service_account_info(
-        st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"],
-        scopes=SCOPE
-    )
-    gc = gspread.authorize(credentials)
-    return gc.open_by_url(SHEET_URL).worksheet(WORKSHEET_NAME)
-
-def load_sheet(ws):
-    rows = ws.get_all_values()
-    return pd.DataFrame(rows[1:], columns=rows[0]) if rows else pd.DataFrame()
-
-def append_row(ws, book_dict):
-    row = [book_dict.get(col, "") for col in ws.row_values(1)]
-    try:
-        ws.append_row(row)
-        st.success("✅ New book successfully added to the sheet.")
-    except Exception as e:
-        st.error(f"❌ Failed to append row to sheet: {e}")
-
-# Streamlit UI
-st.set_page_config(page_title="Pickle Lit", layout="centered")
+st.set_page_config(page_title="📚 Pickle Lit: Romance Book Explorer", layout="wide")
 st.title("📚 Pickle Lit: Romance Book Explorer")
 
-worksheet = get_worksheet()
-df = load_sheet(worksheet)
+def load_books(limit=50):
+    conn = get_postgres_conn()
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("SELECT * FROM books ORDER BY last_updated DESC LIMIT %s", (limit,))
+        rows = cur.fetchall()
+    return pd.DataFrame(rows)
 
-st.markdown("Search for a new book to add it to your database.")
+title = st.text_input("Search for a book title")
 
-title_input = st.text_input("Enter book title")
-search_button = st.button("🔍 Search & Add New Book")
+if st.button("Search and Scrape"):
+    if title:
+        with st.spinner("Scraping and updating..."):
+            updated, meta = scrape_and_update(title)
+            if meta["status"] == "new_scraped":
+                st.success("✅ Book scraped and added!")
+            elif meta["status"] == "fresh":
+                st.info("🟢 Book is already up-to-date.")
+            elif meta["status"] == "not_found":
+                st.error("❌ Could not find this book.")
+            st.session_state["trigger_rerun"] = True
+            st.stop()
 
-if search_button and title_input:
-    if ((df["title"] == title_input).any()):
-        st.info("This book is already in your sheet.")
-    else:
-        with st.spinner("Scraping book info..."):
-            book_data = scrape_book_metadata(title_input)
-            if book_data:
-                st.write("Scraped data preview:")
-                st.dataframe(pd.DataFrame([book_data]))
-                append_row(worksheet, book_data)
-            else:
-                st.error("❌ Could not find this book using Google Books API.")
+df = load_books()
+st.write("Recent Books:")
+st.dataframe(df)
+
+if st.session_state.get("trigger_rerun"):
+    st.session_state["trigger_rerun"] = False
+    st.experimental_rerun()
